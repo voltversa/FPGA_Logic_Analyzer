@@ -2,7 +2,7 @@
 
 A simulation-first, board-neutral logic analyzer implemented in VHDL-2008.
 
-> Status: repository skeleton and design plan only. No RTL or hardware performance claims have been implemented yet.
+
 
 ## Planned first release
 
