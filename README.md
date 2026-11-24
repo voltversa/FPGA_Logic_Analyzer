@@ -34,17 +34,7 @@ The current **start** input initiates capture directly. There is **no** trigger 
 
 ## How it works
 
-~~~text
-fpga_pins[7:0] --> Digital_sampling ---- sampled[7:0] ----+
-                          ^                               |
-                          | en                            v
-100 MHz clk --> clk_en --+--- delayed sample_valid --> capture_controller
-                                                         | wr_en, wr_addr
-                                                         v
-                                                       BRAM ---- rd_data[7:0]
-                                                         ^
-                                                     rd_en, rd_addr
-~~~
+
 
 Capture starts when the controller sees **start**. The controller stores a sequence of **1,024 qualified samples** and then holds **cap_done** high in the DONE state until reset. RAM readback uses **rd_en** and **rd_addr** and has a synchronous read latency.
 
@@ -72,11 +62,10 @@ FPGA_Logic_Analyzer/
 └── .gitignore
 ~~~
 
-The Vivado project has been updated to reference the source files in **rtl/** and **tb/**. The VHDL implementations and testbench contents were **moved without editing their logic**.
 
 ## Simulation and verification
 
-The primary integration test is **tb/top_tb.vhd**. It generates a 100 MHz clock, applies reset and start, injects changing 8-bit input patterns at 10 µs intervals, waits for **cap_done** (with a 2 ms timeout), and reads selected RAM locations.
+The primary integration test is **tb/top_tb.vhd**. It generates a 100 MHz clock, applies reset and start, injects changing 8-bit input patterns at 10 us intervals, waits for **cap_done** (with a 2 ms timeout), and reads selected RAM locations.
 
 | Readback address | Expected data |
 | ---: | :--- |
@@ -87,16 +76,6 @@ The primary integration test is **tb/top_tb.vhd**. It generates a 100 MHz clock,
 | 40 | 0x0F |
 
 The test also asserts that capture completes and **cap_done** remains high during readback. Individual testbenches are included for the clock enable, digital sampler, BRAM and capture controller. These older unit tests have been preserved as written; this repository cleanup does not claim they were newly rerun or improved.
-
-### Run in Vivado
-
-1. Open **FPGA_Logic_Analyzer.xpr** in **Vivado 2026.1**.
-2. Confirm the design top is **top** and the simulation top is **top_tb**.
-3. Select **Run Simulation → Run Behavioral Simulation**.
-4. Run to completion (the integration test uses VHDL-2008 **std.env.finish**) and inspect the Tcl/Simulation messages for assertion errors.
-5. Inspect the waveforms for sampled data, write addresses, read addresses, read data, FSM state and **cap_done**.
-
-**Important:** a final “All integration tests completed!” note alone does not mean there were no earlier **severity error** assertions. Check the complete simulation transcript. The source relocation should also be checked by reopening the project locally before merging this cleanup.
 
 ## Hardware status and limitations
 
@@ -119,4 +98,4 @@ See **docs/ARCHITECTURE.md** for the signal flow and **docs/ROADMAP.md** for pro
 
 ## Development workflow
 
-This repository tracks only useful source/project files; generated Vivado runs, simulator waveforms and other temporary outputs are excluded by **.gitignore**. Work locally in Vivado, then review changes with Git before committing and pushing.
+This repository tracks only useful source/project files; generated Vivado runs, simulator waveforms and other temporary outputs are excluded by **.gitignore**.
