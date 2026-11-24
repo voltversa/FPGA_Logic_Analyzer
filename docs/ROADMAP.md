@@ -1,72 +1,42 @@
-# Roadmap
+# Development roadmap
 
-## Phase 0 — Project skeleton
+Progress is based on the actual VHDL and testbenches in this repository as of **24 November 2026**.
 
-- [x] Define repository architecture
-- [x] Define module boundaries
-- [x] Create empty RTL, testbench, host, script, and constraint placeholders
-- [ ] Select the first FPGA board
+## Completed in RTL
 
-## Phase 1 — Sampling frontend
+- [x] Shared configuration package (100 MHz, 1 MHz, 8-bit inputs, 1,024-sample memory)
+- [x] Clock-enable generator
+- [x] 8-channel registered digital sampler
+- [x] Synchronous read/write RAM RTL
+- [x] Capture-controller FSM: IDLE → CAP → DONE
+- [x] Integrated top-level design
+- [x] Unit-testbench source files for clock enable, sampler, RAM and controller
+- [x] Behavioral integration testbench with dynamic input patterns and selected RAM-read assertions
 
-- [ ] Add shared configuration types and generics
-- [ ] Implement registered probe input
-- [ ] Implement sample clock-enable divider
-- [ ] Add self-checking frontend tests
+These checkboxes indicate code exists and the integration behavior has been demonstrated in XSim; they do **not** imply completed formal verification, synthesis, or hardware deployment.
 
-Exit criterion: deterministic samples at divide-by-1 and divided rates in simulation.
+## Next: triggering
 
-## Phase 2 — Trigger engine
+- [ ] Build an edge detector using previous/current valid samples
+- [ ] Test rising-edge and falling-edge conditions
+- [ ] Add an ARMED state to coordinate start and trigger
+- [ ] Define whether the trigger sample is stored; verify timing explicitly
+- [ ] Explore circular buffer and pre-trigger samples
 
-- [ ] Implement rising-edge and falling-edge triggers
-- [ ] Implement high-level and low-level triggers
-- [ ] Add per-channel mask and match value
-- [ ] Test all trigger modes and disabled channels
+## Verification and FPGA readiness
 
-Exit criterion: exactly one trigger pulse for every valid programmed condition.
+- [ ] Re-run/refine all unit testbenches and automate regression
+- [ ] Exercise full memory depth, boundary transitions and changing patterns
+- [ ] Synthesize and confirm inferred physical RAM resources
+- [ ] Inspect timing and utilization reports
+- [ ] Add board-specific clock and I/O constraints
+- [ ] Validate 3.3 V digital inputs and physical connections on Basys 3
+- [ ] Demonstrate a real captured digital signal
 
-## Phase 3 — Capture memory
+## Future communication and host tools
 
-- [ ] Infer a parameterizable dual-port BRAM
-- [ ] Implement circular write addressing
-- [ ] Track trigger index and chronological read address
-- [ ] Test wraparound at multiple depths
+- [ ] UART TX/RX or another suitable link
+- [ ] Host-side capture transfer
+- [ ] PC waveform viewer / standard waveform export
 
-Exit criterion: pre-trigger history and post-trigger samples read back in time order.
-
-## Phase 4 — Capture controller
-
-- [ ] Implement idle, armed, post-trigger, complete, and readout states
-- [ ] Add configurable pre-trigger ratio
-- [ ] Add abort and re-arm handling
-- [ ] Run an integrated capture test
-
-Exit criterion: repeatable triggered captures with no overwritten completed data.
-
-## Phase 5 — Host link
-
-- [ ] Implement UART RX/TX
-- [ ] Implement the framed command decoder
-- [ ] Implement Python configuration and capture utility
-- [ ] Export captured data as VCD
-
-Exit criterion: a simulated host command produces a valid capture file viewable in GTKWave.
-
-## Phase 6 — Hardware demonstration
-
-- [ ] Add board-specific clock and pin constraints
-- [ ] Verify I/O voltage and input protection
-- [ ] Capture a known PWM, UART, and SPI transaction
-- [ ] Measure maximum stable sample rate
-- [ ] Add photos, waveforms, utilization, and timing results
-
-Exit criterion: reproducible hardware demo with measured—not estimated—limits.
-
-## Stretch goals
-
-- [ ] Run-length encoding
-- [ ] Pattern and multi-stage triggers
-- [ ] External trigger input/output
-- [ ] PulseView/sigrok-compatible export
-- [ ] USB FIFO or Ethernet transport
-
+These features are **not currently implemented**. No placeholder modules are kept just to imply they exist.
