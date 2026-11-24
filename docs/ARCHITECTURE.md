@@ -1,64 +1,52 @@
-# Architecture
+# Implemented architecture
 
-## Objective
+This document describes the **current RTL**, not a hypothetical future design.
 
-Build a small, understandable FPGA logic analyzer that can capture external digital signals around a configurable trigger event and transfer the captured samples to a computer.
+## Data path
 
-## Planned data path
+~~~text
+                            +----------------------+
+100 MHz clk --------------->| clk_en: 1 MHz enable |-----------------+
+                            +----------------------+                 |
+                                                                     v
+fpga_pins[7:0] ----------------------------------------------> Digital_sampling
+                                                                     |
+                                                             sampled[7:0]
+                                                                     |
+                                             +-----------------------+
+                                             v
+                                      BRAM (1,024 x 8)
+                                      synchronous read/write
+                                             ^
+                                    wr_en / wr_addr
+                                             |
+start --> capture_controller (IDLE, CAP, DONE) <--- sample_valid
+                     |
+                   cap_done
+~~~
 
-```mermaid
-flowchart LR
-    P[Probe inputs] --> F[Input frontend]
-    F --> S[Sampler]
-    S --> T[Trigger unit]
-    S --> B[Capture buffer]
-    T --> C[Capture controller]
-    C --> B
-    B --> U[UART streamer]
-```
+All modules run on the **same 100 MHz system clock**; the sampling rate is implemented using a clock-enable rather than a separate internal clock.
 
-The command decoder configures the sampler, trigger unit, and capture controller. The UART transmitter returns status and captured samples to the host utility.
+## Registered sample alignment
 
-## Module responsibilities
+The clock-enable module asserts **en** for a clock cycle every 100 system clocks. On the next relevant rising edge, **Digital_sampling** uses en to register the current input byte. At that edge **top** also registers **sample_valid <= en**. The controller and RAM then consume that valid indication at the following rising edge, when the new sampled byte is stable. This is the one-clock valid-data alignment pipeline in **top.vhd**.
 
-| Module | Responsibility |
-|---|---|
-| `logic_analyzer_pkg` | Shared types, constants, and configuration records |
-| `input_frontend` | Registered probe input with optional synchronization for low-speed mode |
-| `sample_clock_divider` | Generates a sampling enable without creating an internal fabric clock |
-| `trigger_unit` | Detects edge and level trigger conditions with channel masks |
-| `capture_buffer` | Infers dual-port block RAM and maintains circular addressing |
-| `capture_controller` | Arms capture, freezes the trigger position, and completes post-trigger samples |
-| `command_decoder` | Validates commands and updates configuration |
-| `uart_rx` / `uart_tx` | Byte transport between FPGA and host |
-| `logic_analyzer_top` | Integrates the core without board-specific pin assumptions |
+## Capture behavior
 
-## Clock and reset approach
+- **IDLE:** waits for **start**; clears the address counter while start is low.
+- **CAP:** on a valid sample, enables RAM write at the current 10-bit address and advances the counter.
+- **DONE:** no more capture writes; **cap_done** stays asserted until synchronous reset.
 
-- One board clock drives the core.
-- Sampling uses a clock-enable pulse instead of a divided fabric clock.
-- External probes are registered at the sampling boundary.
-- An optional two-register synchronizer may be enabled for safe low-speed monitoring, but is disabled for timing-faithful logic-analyzer capture.
-- Reset is asserted asynchronously at the top-level boundary and released synchronously inside the design.
+The current controller uses address 1023 as its terminal sample. It does not yet support a runtime capture length, ARM/trigger distinction, circular buffering, abort or automatic re-arm.
 
-## Capture sequence
+## RAM behavior
 
-1. The host writes the channel mask, trigger mode, sample divider, and pre-trigger ratio.
-2. `ARM` clears status and starts circular sampling.
-3. The buffer continuously retains the newest pre-trigger history.
-4. A trigger freezes the trigger index and starts the post-trigger counter.
-5. Capture stops after the requested post-trigger samples.
-6. The host reads metadata followed by sample bytes in chronological order.
+**BRAM.vhd** implements a VHDL array with synchronous clocked write and read enables. A read value is updated on a rising edge when **rd_en** is high. Simultaneous write and read to different addresses are permitted. Same-address read/write behavior should be checked against the synthesized primitive's configured collision mode before relying on it.
 
-## Verification strategy
+## Verification scope
 
-- Unit-test trigger modes and masks.
-- Verify circular-buffer wraparound and chronological readout.
-- Test trigger positions at the start, middle, end, and wrap boundary.
-- Check arm, trigger, complete, abort, and re-arm state transitions.
-- Run an integration test that decodes an artificial UART configuration, captures known probe activity, and compares the exported samples.
+**tb/top_tb.vhd** drives four successive patterns (**0xAA, 0x55, 0xF0, 0x0F**) and checks stored contents at addresses **0, 5, 11, 24, 40**, along with completion status. Individual unit testbenches exist, but no claim of exhaustive verification is made.
 
-## Board boundary
+## Not implemented
 
-This repository intentionally contains no invented pin assignments or timing constraints. Board clock generation, I/O voltage, probe protection, and physical pin mapping will be added after the exact FPGA board and probe interface are chosen.
-
+Trigger detection, pre-trigger memory, host commands, UART, VCD export, dedicated input conditioning, physical pin constraints and measured FPGA timing are future work. The target in the Vivado project is **xc7a35tcpg236-1**, but no on-board validation is documented.
